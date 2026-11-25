@@ -7,5 +7,5 @@ statsmodels
 pyportfolioopt
 requests
 beautifulsoup4
-scipy<1.15.0
+scipy
 urllib3
