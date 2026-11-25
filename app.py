@@ -1,3 +1,6 @@
+import scipy.cluster.hierarchy as sch
+if not hasattr(sch, "_LINKAGE_METHODS"):
+    sch._LINKAGE_METHODS = ("single", "complete", "average", "weighted", "centroid", "median", "ward")
 from flask import Flask, render_template, request, jsonify
 import yfinance as yf
 import pandas as pd
@@ -23,6 +26,7 @@ from urllib3.exceptions import ProtocolError
 app = Flask(__name__)
 
 DATA_CACHE = {}
+
 
 def get_market_data(tickers, benchmark_ticker='^NSEI'):
     cache_key = ",".join(sorted(list(set(tickers))))
@@ -224,12 +228,15 @@ def optimize():
     results['metrics']['MVO'] = calc_advanced_metrics(univ_returns, mvo_w, bench_returns, rf)
 
     # 3. Hierarchical Risk Parity (HRP)
-    hrp = HRPOpt(univ_returns)
-    clean_hrp = hrp.optimize()
-    hrp_w = {k: round(v*100, 2) for k, v in clean_hrp.items()}
-    results['weights']['HRP'] = hrp_w
-    results['metrics']['HRP'] = calc_advanced_metrics(univ_returns, hrp_w, bench_returns, rf)
-
+    # 3. Hierarchical Risk Parity (HRP)
+    try:
+        hrp = HRPOpt(univ_returns)
+        clean_hrp = hrp.optimize()
+        hrp_w = {k: round(v*100, 2) for k, v in clean_hrp.items()}
+        results['weights']['HRP'] = hrp_w
+        results['metrics']['HRP'] = calc_advanced_metrics(univ_returns, hrp_w, bench_returns, rf)
+    except Exception as e:
+        print("HRP Error:", e)
     # 4. Black-Litterman Model
     # 4. Black-Litterman Model
     try:
