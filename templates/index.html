@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quant Portfolio Studio</title>
+    <!-- ChartJS for rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS for Excel Exports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      body {
+        font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f7f6;
+        color: #333;
+        margin: 0;
+        padding: 20px;
+      }
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+      .controls-card {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+        border: 1px solid #e1e8ed;
+      }
+      .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+      label {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #34495e;
+      }
+      input[type="text"],
+      input[type="number"],
+      select,
+      textarea {
+        padding: 10px;
+        border: 1px solid #bdc3c7;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 14px;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+      button {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .btn-primary {
+        background-color: #2980b9;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background-color: #3498db;
+      }
+      .btn-primary:disabled {
+        background-color: #95a5a6;
+        cursor: not-allowed;
+      }
+      .btn-success {
+        background-color: #27ae60;
+      }
+      .btn-success:hover {
+        background-color: #2ecc71;
+      }
+      .btn-export {
+        background-color: #107c41;
+        margin-left: 15px;
+      }
+      .btn-export:hover {
+        background-color: #15964f;
+      }
+
+      .results-container {
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+      }
+      .table-container {
+        flex: 2;
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        overflow-x: auto;
+        min-width: 400px;
+      }
+      .chart-container {
+        flex: 1;
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        min-width: 300px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      th:hover {
+        background-color: #e2e6ea;
+      }
+      .error-msg {
+        color: #e74c3c;
+        font-weight: bold;
+        margin-top: 10px;
+        display: none;
+      }
+
+      .mvo-badge {
+        background-color: #f39c12;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        margin-left: 10px;
+        display: inline-block;
+      }
+      .change-alert {
+        display: none;
+        background-color: #fdf3d8;
+        color: #b9770e;
+        padding: 10px;
+        border-left: 4px solid #f39c12;
+        margin-top: 10px;
+        font-size: 13px;
+        font-weight: bold;
+        border-radius: 4px;
+      }
+      .loading-alert {
+        display: none;
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border-left: 4px solid #28a745;
+        margin-top: 10px;
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Quant Portfolio Studio</h1>
+    <label>By BFIM group 6 </label>
+
+    <!-- MUTUAL FUND SCRAPER UI -->
+    <div
+      class="controls-card"
+      style="background: #eaf2f8; border-color: #b9d5ec"
+    >
+      <h3 style="margin-top: 0; color: #2c3e50">
+        Auto-Fetch Live Mutual Fund Holdings
+      </h3>
+      <div class="form-row" style="align-items: flex-end">
+        <div class="form-group" style="flex: 3">
+          <label>Enter Mutual Fund Name or Groww URL slug:</label>
+          <input
+            type="text"
+            id="mfSearchName"
+            placeholder="e.g., SBI Small Cap, parag-parikh-flexi-cap-fund-direct-growth"
+          />
+        </div>
+        <div class="form-group" style="flex: 1">
+          <button
+            onclick="fetchMutualFund()"
+            class="btn-success"
+            style="width: 100%"
+          >
+            🔍 Extract Holdings
+          </button>
+        </div>
+      </div>
+      <div
+        id="mfLoading"
+        style="display: none; color: #2980b9; font-size: 13px; margin-top: 10px"
+      >
+        <b
+          >Pinging servers and mapping Yahoo Finance tickers... this takes ~5-15
+          seconds.</b
+        >
+      </div>
+    </div>
+
+    <!-- MAIN ENGINE CONTROLS -->
+    <div class="controls-card">
+      <div class="form-row">
+        <div class="form-group" style="flex: 3">
+          <label>Stock & Asset Universe (Comma-separated Tickers):</label>
+          <input
+            type="text"
+            id="tickers"
+            value="RELIANCE.NS, TCS.NS, HDFCBANK.NS, ITC.NS, LTGILTBEES.NS, EMBASSY.NS"
+          />
+        </div>
+        <div class="form-group" style="flex: 1">
+          <label>Risk-Free Rate (%):</label>
+          <input type="number" id="rf_rate" value="7.0" step="0.1" />
+        </div>
+        <div class="form-group" style="flex: 2">
+          <label>MVO Optimization Goal:</label>
+          <div style="display: flex; gap: 10px">
+            <select
+              id="opt_action"
+              style="flex: 1"
+              onchange="triggerOptimizerAlert()"
+            >
+              <option value="Maximize">Maximize</option>
+              <option value="Minimize">Minimize</option>
+            </select>
+            <select
+              id="opt_metric"
+              style="flex: 2"
+              onchange="triggerOptimizerAlert()"
+            >
+              <option value="Sharpe Ratio">Sharpe Ratio</option>
+              <option value="Risk">Risk (Volatility)</option>
+              <option value="1 Year Return">1 Year Return</option>
+              <option value="3 Year Return">3 Year Return</option>
+              <option value="5 Year Return">5 Year Return</option>
+              <option value="10 Year Return">10 Year Return</option>
+              <option value="Information Ratio">Information Ratio</option>
+              <option value="Treynor Ratio">Treynor Ratio</option>
+              <option value="Jensen's Alpha">Jensen's Alpha (%)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex: 1">
+          <label>Black-Litterman Speculative Views (JSON):</label>
+          <textarea id="views">{"RELIANCE.NS": 0.15, "TCS.NS": 0.12}</textarea>
+        </div>
+        <div class="form-group" style="flex: 1">
+          <label>Custom Mutual Funds (JSON Array of Portfolios):</label>
+          <textarea id="custom_mfs">{}</textarea>
+        </div>
+      </div>
+
+      <button id="runEngineBtn" onclick="runOptimization()" class="btn-primary">
+        Run Quantitative Engine
+      </button>
+
+      <div id="engineLoadingAlert" class="loading-alert">
+        ⚙️ Pinging Yahoo Finance and calculating statistical models. Please
+        wait...
+      </div>
+
+      <div id="mvoChangeAlert" class="change-alert">
+        ⚠️ Optimization target changed. Click "Run Quantitative Engine" to
+        calculate the new weights.
+      </div>
+      <div id="engineError" class="error-msg"></div>
+    </div>
+
+    <!-- RESULTS DASHBOARD -->
+    <div id="resultsArea" style="display: none">
+      <div style="display: flex; align-items: center; margin-bottom: 10px">
+        <h2 style="margin: 0; color: #2c3e50">Engine Results</h2>
+        <button onclick="publishToExcel()" class="btn-export">
+          💾 Publish to Excel
+        </button>
+      </div>
+
+      <!-- MACRO ASSET CLASS BREAKDOWN -->
+      <div class="controls-card" style="background-color: #fbfcfc">
+        <h3 style="margin-top: 0; color: #16a085">
+          Macro Asset Class Breakdown
+        </h3>
+        <table id="assetClassTable">
+          <thead id="asset_class_head"></thead>
+          <tbody id="asset_class_body"></tbody>
+        </table>
+      </div>
+
+      <!-- INDUSTRY / SECTOR BREAKDOWN (NEW) -->
+      <div class="controls-card" style="background-color: #fef9e7">
+        <h3 style="margin-top: 0; color: #d35400">
+          Industry / Sector Allocation
+        </h3>
+        <table id="sectorTable">
+          <thead id="sector_head"></thead>
+          <tbody id="sector_body"></tbody>
+        </table>
+      </div>
+
+      <!-- METRICS TABLE -->
+      <div class="controls-card">
+        <h3 style="margin-top: 0; display: flex; align-items: center">
+          Performance Metrics
+          <span
+            id="activeMvoBadge"
+            class="mvo-badge"
+            style="display: none"
+          ></span>
+        </h3>
+        <table id="metricsTable">
+          <thead id="metrics_head"></thead>
+          <tbody id="metrics_body"></tbody>
+        </table>
+      </div>
+
+      <div class="results-container">
+        <!-- ALLOCATIONS TABLE -->
+        <div class="table-container">
+          <h3 style="margin-top: 0">Asset Allocations (%)</h3>
+          <p style="font-size: 12px; color: #7f8c8d">
+            Click any column header to view its pie chart.
+          </p>
+          <table id="allocationsTable">
+            <thead id="allocations_head"></thead>
+            <tbody id="allocations_body"></tbody>
+          </table>
+        </div>
+
+        <!-- CHART JS -->
+        <div class="chart-container">
+          <h3 id="chartTitle" style="margin-top: 0; text-align: center">
+            Allocation Chart
+          </h3>
+          <canvas id="allocationChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let currentChart = null;
+      let globalWeights = {};
+
+      function triggerOptimizerAlert() {
+        if (document.getElementById("resultsArea").style.display === "block") {
+          document.getElementById("mvoChangeAlert").style.display = "block";
+        }
+      }
+
+      // --- TICKER MACRO CATEGORY ---
+      function getAssetCategory(ticker) {
+        const t = ticker.toUpperCase();
+        if (
+          t.includes("EMBASSY") ||
+          t.includes("MINDSPACE") ||
+          t.includes("BROOKFIELD") ||
+          t.includes("NEXST") ||
+          t.includes("REIT")
+        )
+          return "REIT";
+        if (
+          t.includes("LTGILT") ||
+          t.includes("LIQUID") ||
+          t.includes("GSEC") ||
+          t.includes("DEBT") ||
+          t.includes("BOND")
+        )
+          return "Debt";
+        return "Equity";
+      }
+
+      // --- INDUSTRY / SECTOR CATEGORIZATION LOGIC ---
+      function getSectorCategory(ticker) {
+        const t = ticker.toUpperCase();
+
+        // Fixed Income & Real Estate
+        if (
+          t.includes("EMBASSY") ||
+          t.includes("MINDSPACE") ||
+          t.includes("BROOKFIELD") ||
+          t.includes("REIT")
+        )
+          return "Real Estate / REIT";
+        if (
+          t.includes("LTGILT") ||
+          t.includes("LIQUID") ||
+          t.includes("GSEC") ||
+          t.includes("DEBT") ||
+          t.includes("BOND")
+        )
+          return "Fixed Income / Debt";
+
+        // Financials
+        if (
+          t.includes("BANK") ||
+          t.includes("BAJFINANCE") ||
+          t.includes("BAJAJFINSV") ||
+          t.includes("CHOLAFIN") ||
+          t.includes("MUTHOOT") ||
+          t.includes("LIFE") ||
+          t.includes("LOMBARD") ||
+          t.includes("AMC") ||
+          t.includes("PFC") ||
+          t.includes("RECLTD") ||
+          t.includes("HUDCO") ||
+          t.includes("IREDA") ||
+          t.includes("JIOFIN") ||
+          t.includes("PNB") ||
+          t.includes("LICI")
+        )
+          return "Financials";
+
+        // Technology
+        if (
+          t.includes("TCS") ||
+          t.includes("INFY") ||
+          t.includes("HCLTECH") ||
+          t.includes("WIPRO") ||
+          t.includes("TECHM") ||
+          t.includes("LTIM") ||
+          t.includes("PERSISTENT") ||
+          t.includes("COFORGE") ||
+          t.includes("MPHASIS")
+        )
+          return "Technology";
+
+        // Defence & Industrials
+        if (
+          t.includes("HAL") ||
+          t.includes("BEL") ||
+          t.includes("BDL") ||
+          t.includes("MAZDOCK") ||
+          t.includes("COCHIN") ||
+          t.includes("GRSE") ||
+          t.includes("DATAPATT") ||
+          t.includes("ASTRA") ||
+          t.includes("ZENTEC") ||
+          t.includes("LT") ||
+          t.includes("BHEL") ||
+          t.includes("IRFC") ||
+          t.includes("RVNL") ||
+          t.includes("IRCON") ||
+          t.includes("RITES")
+        )
+          return "Defence & Industrials";
+
+        // Energy, Power & Utilities
+        if (
+          t.includes("RELIANCE") ||
+          t.includes("ONGC") ||
+          t.includes("NTPC") ||
+          t.includes("POWERGRID") ||
+          t.includes("COALINDIA") ||
+          t.includes("TATAPOWER") ||
+          t.includes("ADANI") ||
+          t.includes("BPCL") ||
+          t.includes("GAIL") ||
+          t.includes("IOC") ||
+          t.includes("NHPC") ||
+          t.includes("SJVN")
+        )
+          return "Energy & Utilities";
+
+        // FMCG & Retail
+        if (
+          t.includes("HINDUNILVR") ||
+          t.includes("ITC") ||
+          t.includes("NESTLE") ||
+          t.includes("BRITANNIA") ||
+          t.includes("TATACONSUM") ||
+          t.includes("GODREJCP") ||
+          t.includes("DMART") ||
+          t.includes("TRENT") ||
+          t.includes("TITAN") ||
+          t.includes("DABUR") ||
+          t.includes("MARICO") ||
+          t.includes("COLPAL") ||
+          t.includes("ZOMATO")
+        )
+          return "FMCG & Consumer";
+
+        // Auto & Auto Ancillary
+        if (
+          t.includes("TATAMOTORS") ||
+          t.includes("M&M") ||
+          t.includes("MARUTI") ||
+          t.includes("BAJAJ-AUTO") ||
+          t.includes("HEROMOTO") ||
+          t.includes("EICHER") ||
+          t.includes("TVS") ||
+          t.includes("ASHOKLEY") ||
+          t.includes("BOSCH")
+        )
+          return "Automobile";
+
+        // Healthcare & Pharma
+        if (
+          t.includes("SUNPHARMA") ||
+          t.includes("DRREDDY") ||
+          t.includes("CIPLA") ||
+          t.includes("DIVISLAB") ||
+          t.includes("APOLLO") ||
+          t.includes("LUPIN") ||
+          t.includes("ZYDUS") ||
+          t.includes("AUROPHARMA") ||
+          t.includes("MAXHEALTH") ||
+          t.includes("TORNTPHARM") ||
+          t.includes("BIOCON")
+        )
+          return "Healthcare & Pharma";
+
+        // Materials, Metals & Cement
+        if (
+          t.includes("TATASTEEL") ||
+          t.includes("JSWSTEEL") ||
+          t.includes("HINDALCO") ||
+          t.includes("VEDL") ||
+          t.includes("JINDAL") ||
+          t.includes("ULTRACEM") ||
+          t.includes("AMBUJA") ||
+          t.includes("ACC") ||
+          t.includes("GRASIM") ||
+          t.includes("SAIL") ||
+          t.includes("NMDC")
+        )
+          return "Materials & Metals";
+
+        return "Others / Diversified";
+      }
+
+      // --- EXCEL PUBLISHER LOGIC ---
+      function publishToExcel() {
+        const rf = document.getElementById("rf_rate").value;
+        const action = document.getElementById("opt_action").value;
+        const metric = document.getElementById("opt_metric").value;
+        const views = document.getElementById("views").value;
+
+        const metaData = [
+          ["System", "Quant Portfolio Studio"],
+          ["Export Date", new Date().toLocaleString()],
+          ["Risk-Free Rate (%)", rf],
+          ["MVO Optimization Method", `${action} ${metric}`],
+          ["Black-Litterman Speculations", views],
+        ];
+
+        const wsMeta = XLSX.utils.aoa_to_sheet(metaData);
+        const wsAssetClass = XLSX.utils.table_to_sheet(
+          document.getElementById("assetClassTable"),
+        );
+        const wsSector = XLSX.utils.table_to_sheet(
+          document.getElementById("sectorTable"),
+        );
+        const wsMetrics = XLSX.utils.table_to_sheet(
+          document.getElementById("metricsTable"),
+        );
+        const wsAllocations = XLSX.utils.table_to_sheet(
+          document.getElementById("allocationsTable"),
+        );
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, wsMeta, "Configuration Data");
+        XLSX.utils.book_append_sheet(wb, wsAssetClass, "Macro Asset Class");
+        XLSX.utils.book_append_sheet(wb, wsSector, "Industry Sector Breakdown");
+        XLSX.utils.book_append_sheet(wb, wsMetrics, "Performance Metrics");
+        XLSX.utils.book_append_sheet(wb, wsAllocations, "Asset Allocations");
+
+        XLSX.writeFile(wb, "Quant_Portfolio_Results.xlsx");
+      }
+
+      // --- SCRAPER LOGIC ---
+      async function fetchMutualFund() {
+        const fundName = document.getElementById("mfSearchName").value;
+        if (!fundName) {
+          alert("Please enter a mutual fund name.");
+          return;
+        }
+
+        document.getElementById("mfLoading").style.display = "block";
+
+        try {
+          const response = await fetch("/search_fund", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fund_name: fundName }),
+          });
+          const data = await response.json();
+          document.getElementById("mfLoading").style.display = "none";
+
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+
+          const mfsBox = document.getElementById("custom_mfs");
+          let currentMFs = {};
+          try {
+            currentMFs = JSON.parse(mfsBox.value);
+          } catch (e) {
+            currentMFs = {};
+          }
+
+          currentMFs[data.fund_name] = data.weights;
+          mfsBox.value = JSON.stringify(currentMFs, null, 2);
+
+          const tickersBox = document.getElementById("tickers");
+          let currentTickers = tickersBox.value
+            .split(",")
+            .map((t) => t.trim())
+            .filter((t) => t);
+          Object.keys(data.weights).forEach((ticker) => {
+            if (!currentTickers.includes(ticker)) currentTickers.push(ticker);
+          });
+          tickersBox.value = currentTickers.join(", ");
+
+          alert(
+            `Success! Extracted ${Object.keys(data.weights).length} stocks from "${data.fund_name}".`,
+          );
+        } catch (e) {
+          document.getElementById("mfLoading").style.display = "none";
+          alert("Error fetching fund data: " + e);
+        }
+      }
+
+      // --- ENGINE OPTIMIZATION LOGIC ---
+      async function runOptimization() {
+        const errorDiv = document.getElementById("engineError");
+        const alertBox = document.getElementById("mvoChangeAlert");
+        const btn = document.getElementById("runEngineBtn");
+        const loadingAlert = document.getElementById("engineLoadingAlert");
+
+        errorDiv.style.display = "none";
+        alertBox.style.display = "none";
+
+        btn.disabled = true;
+        loadingAlert.style.display = "block";
+
+        let viewsParsed = {};
+        let mfsParsed = {};
+        try {
+          viewsParsed = JSON.parse(
+            document.getElementById("views").value || "{}",
+          );
+        } catch (e) {
+          alert("Invalid JSON in Views");
+          btn.disabled = false;
+          loadingAlert.style.display = "none";
+          return;
+        }
+        try {
+          mfsParsed = JSON.parse(
+            document.getElementById("custom_mfs").value || "{}",
+          );
+        } catch (e) {
+          alert("Invalid JSON in Custom MFs");
+          btn.disabled = false;
+          loadingAlert.style.display = "none";
+          return;
+        }
+
+        const actionVal = document.getElementById("opt_action").value;
+        const metricVal = document.getElementById("opt_metric").value;
+
+        const payload = {
+          tickers: document.getElementById("tickers").value,
+          views: viewsParsed,
+          custom_mfs: mfsParsed,
+          risk_free_rate: document.getElementById("rf_rate").value,
+          action: actionVal,
+          metric: metricVal,
+        };
+
+        try {
+          const res = await fetch("/optimize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json();
+
+          btn.disabled = false;
+          loadingAlert.style.display = "none";
+
+          if (data.error) {
+            errorDiv.innerText = data.error;
+            errorDiv.style.display = "block";
+            return;
+          }
+
+          globalWeights = data.weights;
+          document.getElementById("resultsArea").style.display = "block";
+
+          const badge = document.getElementById("activeMvoBadge");
+          badge.style.display = "inline-block";
+          badge.innerText = `MVO Target: ${actionVal} ${metricVal}`;
+
+          renderAssetClassTable(data.weights);
+          renderSectorTable(data.weights);
+          renderMetricsTable(data.metrics);
+          renderAllocationsTable(data.weights);
+
+          const firstPortfolio = Object.keys(data.weights)[0];
+          if (firstPortfolio) renderChart(firstPortfolio);
+        } catch (err) {
+          btn.disabled = false;
+          loadingAlert.style.display = "none";
+          errorDiv.innerText =
+            "Connection error. Make sure Flask backend is running.";
+          errorDiv.style.display = "block";
+        }
+      }
+
+      // --- RENDERING LOGIC ---
+      function renderAssetClassTable(weightsData) {
+        const head = document.getElementById("asset_class_head");
+        const body = document.getElementById("asset_class_body");
+        head.innerHTML = "";
+        body.innerHTML = "";
+
+        const portfolios = Object.keys(weightsData);
+        if (portfolios.length === 0) return;
+
+        let trHead = "<tr><th>Asset Class</th>";
+        portfolios.forEach((p) => (trHead += `<th>${p}</th>`));
+        trHead += "</tr>";
+        head.innerHTML = trHead;
+
+        const categories = ["Equity", "Debt", "REIT"];
+        categories.forEach((cat) => {
+          let tr = `<tr><td><b>${cat}</b></td>`;
+          portfolios.forEach((p) => {
+            let catSum = 0;
+            Object.keys(weightsData[p]).forEach((ticker) => {
+              if (getAssetCategory(ticker) === cat)
+                catSum += weightsData[p][ticker] || 0;
+            });
+            tr += `<td>${catSum.toFixed(2)}%</td>`;
+          });
+          tr += "</tr>";
+          body.innerHTML += tr;
+        });
+      }
+
+      function renderSectorTable(weightsData) {
+        const head = document.getElementById("sector_head");
+        const body = document.getElementById("sector_body");
+        head.innerHTML = "";
+        body.innerHTML = "";
+
+        const portfolios = Object.keys(weightsData);
+        if (portfolios.length === 0) return;
+
+        let trHead = "<tr><th>Industry Sector</th>";
+        portfolios.forEach((p) => (trHead += `<th>${p}</th>`));
+        trHead += "</tr>";
+        head.innerHTML = trHead;
+
+        // Collect active sectors
+        const activeSectors = new Set();
+        portfolios.forEach((p) => {
+          Object.keys(weightsData[p]).forEach((ticker) => {
+            if (weightsData[p][ticker] > 0) {
+              activeSectors.add(getSectorCategory(ticker));
+            }
+          });
+        });
+
+        const sortedSectors = Array.from(activeSectors).sort();
+
+        sortedSectors.forEach((sec) => {
+          let tr = `<tr><td><b>${sec}</b></td>`;
+          portfolios.forEach((p) => {
+            let secSum = 0;
+            Object.keys(weightsData[p]).forEach((ticker) => {
+              if (getSectorCategory(ticker) === sec)
+                secSum += weightsData[p][ticker] || 0;
+            });
+            tr += `<td>${secSum.toFixed(2)}%</td>`;
+          });
+          tr += "</tr>";
+          body.innerHTML += tr;
+        });
+      }
+
+      function renderMetricsTable(metricsData) {
+        const head = document.getElementById("metrics_head");
+        const body = document.getElementById("metrics_body");
+        head.innerHTML = "";
+        body.innerHTML = "";
+
+        const portfolios = Object.keys(metricsData);
+        if (portfolios.length === 0) return;
+        const metricsList = Object.keys(metricsData[portfolios[0]]);
+
+        let trHead = "<tr><th>Metric</th>";
+        portfolios.forEach((p) => (trHead += `<th>${p}</th>`));
+        trHead += "</tr>";
+        head.innerHTML = trHead;
+
+        metricsList.forEach((m) => {
+          let tr = `<tr><td><b>${m}</b></td>`;
+          portfolios.forEach((p) => (tr += `<td>${metricsData[p][m]}</td>`));
+          tr += "</tr>";
+          body.innerHTML += tr;
+        });
+      }
+
+      function renderAllocationsTable(weightsData) {
+        const head = document.getElementById("allocations_head");
+        const body = document.getElementById("allocations_body");
+        head.innerHTML = "";
+        body.innerHTML = "";
+
+        const portfolios = Object.keys(weightsData);
+        if (portfolios.length === 0) return;
+
+        const allTickers = new Set();
+        portfolios.forEach((p) =>
+          Object.keys(weightsData[p]).forEach((t) => allTickers.add(t)),
+        );
+        const tickerList = Array.from(allTickers).sort();
+
+        let trHead = "<tr><th>Ticker</th>";
+        portfolios.forEach(
+          (p) =>
+            (trHead += `<th onclick="renderChart('${p}')" style="color:#2980b9;">${p} 📊</th>`),
+        );
+        trHead += "</tr>";
+        head.innerHTML = trHead;
+
+        tickerList.forEach((t) => {
+          let tr = `<tr><td><b>${t} <span style="font-size:10px; color:#7f8c8d;">(${getSectorCategory(t)})</span></b></td>`;
+          portfolios.forEach((p) => {
+            let val = weightsData[p][t] || 0;
+            tr += `<td>${val.toFixed(2)}%</td>`;
+          });
+          tr += "</tr>";
+          body.innerHTML += tr;
+        });
+      }
+
+      function renderChart(portfolioName) {
+        document.getElementById("chartTitle").innerText =
+          `${portfolioName} Allocation`;
+        const weights = globalWeights[portfolioName];
+
+        const labels = [];
+        const data = [];
+        Object.keys(weights).forEach((t) => {
+          if (weights[t] > 0.01) {
+            labels.push(t);
+            data.push(weights[t]);
+          }
+        });
+
+        if (currentChart) currentChart.destroy();
+        const ctx = document.getElementById("allocationChart").getContext("2d");
+
+        currentChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: data,
+                backgroundColor: [
+                  "#3498db",
+                  "#e74c3c",
+                  "#2ecc71",
+                  "#f1c40f",
+                  "#9b59b6",
+                  "#34495e",
+                  "#1abc9c",
+                  "#e67e22",
+                  "#95a5a6",
+                  "#d35400",
+                  "#c0392b",
+                  "#16a085",
+                ],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: "right" } },
+          },
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+flask
+gunicorn
+yfinance
+pandas
+numpy
+statsmodels
+pyportfolioopt
+requests
+beautifulsoup4
+scipy
+urllib3
